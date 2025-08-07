@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Wordle</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #6aaa64;
+            --warning-color: #c9b458;
+            --neutral-color: #787c7e;
+            --dark-color: #3a3a3c;
+            --light-color: #ffffff;
+            --border-color: #d3d6da;
+            --bg-color: #f6f7f8;
+            --text-color: #1a1a1b;
+            --error-color: #f5793a;
+            --shadow: 0 4px 20px rgba(0,0,0,0.1);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121213;
+            --text-color: #ffffff;
+            --border-color: #3a3a3c;
+            --neutral-color: #565758;
+            --shadow: 0 4px 20px rgba(255,255,255,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transition: var(--transition);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--light-color);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        [data-theme="dark"] .header {
+            background: var(--dark-color);
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .control-btn {
+            background: none;
+            border: 2px solid var(--border-color);
+            color: var(--text-color);
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: var(--transition);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-btn:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .stats-display {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: var(--neutral-color);
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: var(--light-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        [data-theme="dark"] .game-info {
+            background: var(--dark-color);
+        }
+
+        .info-item {
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.8rem;
+            color: var(--neutral-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-rows: repeat(6, 1fr);
+            gap: 8px;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: var(--light-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        [data-theme="dark"] .game-board {
+            background: var(--dark-color);
+        }
+
+        .word-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+
+        .letter-tile {
+            width: 62px;
+            height: 62px;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: var(--light-color);
+            border-radius: 8px;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        [data-theme="dark"] .letter-tile {
+            background: var(--bg-color);
+        }
+
+        .letter-tile.filled {
+            border-color: var(--neutral-color);
+            animation: pop 0.3s ease-in-out;
+        }
+
+        .letter-tile.correct {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+            animation: flip 0.6s ease-in-out;
+        }
+
+        .letter-tile.present {
+            background: var(--warning-color);
+            border-color: var(--warning-color);
+            color: white;
+            animation: flip 0.6s ease-in-out 0.1s;
+        }
+
+        .letter-tile.absent {
+            background: var(--neutral-color);
+            border-color: var(--neutral-color);
+            color: white;
+            animation: flip 0.6s ease-in-out 0.2s;
+        }
+
+        .letter-tile.current {
+            border-color: var(--dark-color);
+            animation: pulse 1s infinite;
+        }
+
+        .keyboard {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .key {
+            flex: 1;
+            height: 58px;
+            border: none;
+            border-radius: 8px;
+            background: var(--border-color);
+            color: var(--text-color);
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 35px;
+        }
+
+        .key:hover {
+            background: var(--neutral-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .key.wide {
+            flex: 1.5;
+            font-size: 0.8rem;
+        }
+
+        .key.correct {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .key.present {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .key.absent {
+            background: var(--neutral-color);
+            color: white;
+        }
+
+        .message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            background: var(--dark-color);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            z-index: 1000;
+            opacity: 0;
+            transition: var(--transition);
+            box-shadow: var(--shadow);
+        }
+
+        .message.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .message.success {
+            background: var(--primary-color);
+        }
+
+        .message.error {
+            background: var(--error-color);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+            padding: 1rem;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: var(--light-color);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: var(--shadow);
+            transform: translateY(50px);
+            transition: var(--transition);
+        }
+
+        [data-theme="dark"] .modal-content {
+            background: var(--dark-color);
+        }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
+        }
+
+        .modal h2 {
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .modal p {
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .difficulty-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .difficulty-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--border-color);
+            background: none;
+            color: var(--text-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+        }
+
+        .difficulty-btn.active {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes flip {
+            0% { transform: rotateX(0); }
+            50% { transform: rotateX(90deg); }
+            100% { transform: rotateX(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { border-color: var(--dark-color); }
+            50% { border-color: var(--primary-color); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header {
+                padding: 0.5rem 1rem;
+            }
+
+            .logo {
+                font-size: 1.5rem;
+            }
+
+            .main-container {
+                padding: 1rem;
+            }
+
+            .letter-tile {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem;
+            }
+
+            .key {
+                height: 50px;
+                font-size: 0.8rem;
+            }
+
+            .stats-display {
+                display: none;
+            }
+
+            .controls {
+                gap: 0.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .letter-tile {
+                width: 45px;
+                height: 45px;
+                font-size: 1.3rem;
+            }
+
+            .key {
+                height: 45px;
+                font-size: 0.7rem;
+                min-width: 28px;
+            }
+
+            .game-info {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="#" class="logo">
+            <i class="fas fa-spell-check"></i> Enhanced Wordle
+        </a>
+        <div class="stats-display">
+            <span>Streak: <strong id="streak">0</strong></span>
+            <span>Best: <strong id="best-streak">0</strong></span>
+            <span>Win %: <strong id="win-rate">0</strong></span>
+        </div>
+        <div class="controls">
+            <button class="control-btn" id="theme-toggle" title="Toggle Theme">
+                <i class="fas fa-moon"></i>
+            </button>
+            <button class="control-btn" id="help-btn" title="Help">
+                <i class="fas fa-question"></i>
+            </button>
+            <button class="control-btn" id="stats-btn" title="Statistics">
+                <i class="fas fa-chart-bar"></i>
+            </button>
+            <button class="control-btn" id="settings-btn" title="Settings">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="game-info">
+            <div class="info-item">
+                <div class="info-label">Attempts</div>
+                <div class="info-value" id="current-attempt">1/6</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Time</div>
+                <div class="info-value" id="timer">00:00</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Score</div>
+                <div class="info-value" id="score">0</div>
+            </div>
+        </div>
+
+        <div class="game-board" id="game-board">
+            <!-- Game board will be generated by JavaScript -->
+        </div>
+
+        <div class="keyboard" id="keyboard">
+            <div class="keyboard-row">
+                <button class="key" data-key="q">Q</button>
+                <button class="key" data-key="w">W</button>
+                <button class="key" data-key="e">E</button>
+                <button class="key" data-key="r">R</button>
+                <button class="key" data-key="t">T</button>
+                <button class="key" data-key="y">Y</button>
+                <button class="key" data-key="u">U</button>
+                <button class="key" data-key="i">I</button>
+                <button class="key" data-key="o">O</button>
+                <button class="key" data-key="p">P</button>
+            </div>
+            <div class="keyboard-row">
+                <button class="key" data-key="a">A</button>
+                <button class="key" data-key="s">S</button>
+                <button class="key" data-key="d">D</button>
+                <button class="key" data-key="f">F</button>
+                <button class="key" data-key="g">G</button>
+                <button class="key" data-key="h">H</button>
+                <button class="key" data-key="j">J</button>
+                <button class="key" data-key="k">K</button>
+                <button class="key" data-key="l">L</button>
+            </div>
+            <div class="keyboard-row">
+                <button class="key wide" data-key="enter">
+                    <i class="fas fa-level-down-alt"></i> Enter
+                </button>
+                <button class="key" data-key="z">Z</button>
+                <button class="key" data-key="x">X</button>
+                <button class="key" data-key="c">C</button>
+                <button class="key" data-key="v">V</button>
+                <button class="key" data-key="b">B</button>
+                <button class="key" data-key="n">N</button>
+                <button class="key" data-key="m">M</button>
+                <button class="key wide" data-key="backspace">
+                    <i class="fas fa-backspace"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Toast -->
+    <div class="message" id="message"></div>
+
+    <!-- Modals -->
+    <div class="modal" id="help-modal">
+        <div class="modal-content">
+            <h2><i class="fas fa-question-circle"></i> How to Play</h2>
+            <p>Guess the hidden 5-letter word in 6 attempts or less!</p>
+            <div style="text-align: left; margin: 1rem 0;">
+                <p><strong style="color: var(--primary-color);">🟢 Green:</strong> Letter is correct and in the right position</p>
+                <p><strong style="color: var(--warning-color);">🟡 Yellow:</strong> Letter is in the word but wrong position</p>
+                <p><strong style="color: var(--neutral-color);">⚪ Gray:</strong> Letter is not in the word</p>
+            </div>
+            <p><strong>Enhanced Features:</strong></p>
+            <ul style="text-align: left; margin: 1rem 0;">
+                <li>🎯 Score system based on speed and attempts</li>
+                <li>⏱️ Timer to track your solving speed</li>
+                <li>🌓 Dark/Light theme toggle</li>
+                <li>📊 Detailed statistics tracking</li>
+                <li>🎮 Different difficulty levels</li>
+            </ul>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" onclick="closeModal('help-modal')">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="stats-modal">
+        <div class="modal-content">
+            <h2><i class="fas fa-chart-bar"></i> Statistics</h2>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
+                <div class="info-item">
+                    <div class="info-value" id="total-games">0</div>
+                    <div class="info-label">Games Played</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-value" id="total-wins">0</div>
+                    <div class="info-label">Games Won</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-value" id="modal-win-rate">0%</div>
+                    <div class="info-label">Win Rate</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-value" id="modal-streak">0</div>
+                    <div class="info-label">Current Streak</div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="resetStats()">Reset Stats</button>
+                <button class="btn btn-primary" onclick="closeModal('stats-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <h2><i class="fas fa-cog"></i> Settings</h2>
+            <div style="text-align: left;">
+                <h3>Difficulty Level</h3>
+                <div class="difficulty-selector">
+                    <button class="difficulty-btn active" data-difficulty="normal">Normal</button>
+                    <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+                    <button class="difficulty-btn" data-difficulty="expert">Expert</button>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--neutral-color); margin-bottom: 1.5rem;">
+                    Hard: Uncommon words included<br>
+                    Expert: 4 attempts only
+                </p>
+                <h3>Other Options</h3>
+                <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;">
+                    <input type="checkbox" id="sound-effects"> Sound Effects
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0.5rem 0;">
+                    <input type="checkbox" id="auto-focus"> Auto Focus Input
+                </label>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="newGame()">New Game</button>
+                <button class="btn btn-primary" onclick="closeModal('settings-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="game-over-modal">
+        <div class="modal-content">
+            <h2 id="game-over-title">🎉 Congratulations!</h2>
+            <p id="game-over-message">You found the word!</p>
+            <div style="margin: 1rem 0;">
+                <div class="info-item">
+                    <div class="info-label">The word was</div>
+                    <div class="info-value" id="revealed-word" style="font-size: 2rem;">WORLD</div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem;">
+                    <div class="info-item">
+                        <div class="info-value" id="final-attempts">3/6</div>
+                        <div class="info-label">Attempts</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value" id="final-time">01:23</div>
+                        <div class="info-label">Time</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value" id="final-score">150</div>
+                        <div class="info-label">Score</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="shareResult()">
+                    <i class="fas fa-share"></i> Share
+                </button>
+                <button class="btn btn-primary" onclick="newGame(); closeModal('game-over-modal')">
+                    <i class="fas fa-redo"></i> Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class EnhancedWordle {
+            constructor() {
+                this.words = [
+                    'ABOUT', 'ABOVE', 'ABUSE', 'ACTOR', 'ACUTE', 'ADMIT', 'ADOPT', 'ADULT', 'AFTER', 'AGAIN',
+                    'AGENT', 'AGREE', 'AHEAD', 'ALARM', 'ALBUM', 'ALERT', 'ALIKE', 'ALIVE', 'ALLOW', 'ALONE',
+                    'ALONG', 'ALTER', 'AMONG', 'ANGER', 'ANGLE', 'ANGRY', 'APART', 'APPLE', 'APPLY', 'ARENA',
+                    'ARGUE', 'ARISE', 'ARRAY', 'ASIDE', 'ASSET', 'AUDIO', 'AUDIT', 'AVOID', 'AWAKE', 'AWARD',
+                    'AWARE', 'BADLY', 'BASIC', 'BEACH', 'BEGAN', 'BEGIN', 'BEING', 'BELOW', 'BENCH', 'BILLY',
+                    'BIRTH', 'BLACK', 'BLAME', 'BLIND', 'BLOCK', 'BLOOD', 'BOARD', 'BOAST', 'BOOST', 'BOOTH',
+                    'BOUND', 'BRAIN', 'BRAND', 'BRAVE', 'BREAD', 'BREAK', 'BREED', 'BRIEF', 'BRING', 'BROAD',
+                    'BROKE', 'BROWN', 'BUILD', 'BUILT', 'BUYER', 'CABLE', 'CALIF', 'CARRY', 'CATCH', 'CAUSE',
+                    'CHAIN', 'CHAIR', 'CHAOS', 'CHARM', 'CHART', 'CHASE', 'CHEAP', 'CHECK', 'CHEST', 'CHIEF',
+                    'CHILD', 'CHINA', 'CHOSE', 'CIVIL', 'CLAIM', 'CLASS', 'CLEAN', 'CLEAR', 'CLICK', 'CLIMB',
+                    'CLOCK', 'CLOSE', 'CLOUD', 'COACH', 'COAST', 'COULD', 'COUNT', 'COURT', 'COVER', 'CRAFT',
+                    'CRASH', 'CRAZY', 'CREAM', 'CRIME', 'CROSS', 'CROWD', 'CROWN', 'CRUDE', 'CURVE', 'CYCLE',
+                    'DAILY', 'DANCE', 'DATED', 'DEALT', 'DEATH', 'DEBUT', 'DELAY', 'DEPTH', 'DOING', 'DOUBT',
+                    'DOZEN', 'DRAFT', 'DRAMA', 'DRANK', 'DREAM', 'DRESS', 'DRILL', 'DRINK', 'DRIVE', 'DROVE',
+                    'DYING', 'EAGER', 'EARLY', 'EARTH', 'EIGHT', 'ELITE', 'EMPTY', 'ENEMY', 'ENJOY', 'ENTER',
+                    'ENTRY', 'EQUAL', 'ERROR', 'EVENT', 'EVERY', 'EXACT', 'EXIST', 'EXTRA', 'FAITH', 'FALSE',
+                    'FAULT', 'FIBER', 'FIELD', 'FIFTH', 'FIFTY', 'FIGHT', 'FINAL', 'FIRST', 'FIXED', 'FLASH',
+                    'FLEET', 'FLOOR', 'FLUID', 'FOCUS', 'FORCE', 'FORTH', 'FORTY', 'FORUM', 'FOUND', 'FRAME',
+                    'FRANK', 'FRAUD', 'FRESH', 'FRONT', 'FRUIT', 'FULLY', 'FUNNY', 'GIANT', 'GIVEN', 'GLASS',
+                    'GLOBE', 'GOING', 'GRACE', 'GRADE', 'GRAND', 'GRANT', 'GRASS', 'GRAVE', 'GREAT', 'GREEN',
+                    'GROSS', 'GROUP', 'GROWN', 'GUARD', 'GUESS', 'GUEST', 'GUIDE', 'HAPPY', 'HARRY', 'HEART',
+                    'HEAVY', 'HENCE', 'HENRY', 'HORSE', 'HOTEL', 'HOUSE', 'HUMAN', 'IDEAL', 'IMAGE', 'INDEX',
+                    'INNER', 'INPUT', 'ISSUE', 'JAPAN', 'JIMMY', 'JOINT', 'JONES', 'JUDGE', 'KNOWN', 'LABEL',
+                    'LARGE', 'LASER', 'LATER', 'LAUGH', 'LAYER', 'LEARN', 'LEASE', 'LEAST', 'LEAVE', 'LEGAL',
+                    'LEVEL', 'LEWIS', 'LIGHT', 'LIMIT', 'LINKS', 'LIVES', 'LOCAL', 'LOOSE', 'LOWER', 'LUCKY',
+                    'LUNCH', 'LYING', 'MAGIC', 'MAJOR', 'MAKER', 'MARCH', 'MARIA', 'MATCH', 'MAYBE', 'MAYOR',
+                    'MEANT', 'MEDIA', 'METAL', 'MIGHT', 'MINOR', 'MINUS', 'MIXED', 'MODEL', 'MONEY', 'MONTH',
+                    'MORAL', 'MOTOR', 'MOUNT', 'MOUSE', 'MOUTH', 'MOVED', 'MOVIE', 'MUSIC', 'NEEDS', 'NEVER',
+                    'NEWLY', 'NIGHT', 'NOISE', 'NORTH', 'NOTED', 'NOVEL', 'NURSE', 'OCCUR', 'OCEAN', 'OFFER',
+                    'OFTEN', 'ORDER', 'OTHER', 'OUGHT', 'PAINT', 'PANEL', 'PAPER', 'PARTY', 'PEACE', 'PETER',
+                    'PHASE', 'PHONE', 'PHOTO', 'PIANO', 'PIECE', 'PILOT', 'PITCH', 'PLACE', 'PLAIN', 'PLANE',
+                    'PLANT', 'PLATE', 'POINT', 'POUND', 'POWER', 'PRESS', 'PRICE', 'PRIDE', 'PRIME', 'PRINT',
+                    'PRIOR', 'PRIZE', 'PROOF', 'PROUD', 'PROVE', 'QUEEN', 'QUICK', 'QUIET', 'QUITE', 'RADIO',
+                    'RAISE', 'RANGE', 'RAPID', 'RATIO', 'REACH', 'READY', 'REALM', 'REBEL', 'REFER', 'RELAX',
+                    'REPAY', 'REPLY', 'RIGHT', 'RIVAL', 'RIVER', 'ROBOT', 'ROGER', 'ROMAN', 'ROUGH', 'ROUND', 'ROUTE', 'ROYAL',
+                   'RURAL', 'SCALE', 'SCENE', 'SCOPE', 'SCORE', 'SENSE', 'SERVE', 'SETUP', 'SEVEN', 'SHALL',
+                   'SHAPE', 'SHARE', 'SHARP', 'SHEET', 'SHELF', 'SHELL', 'SHIFT', 'SHINE', 'SHIRT', 'SHOCK',
+                   'SHOOT', 'SHORT', 'SHOWN', 'SIGHT', 'SINCE', 'SIXTH', 'SIXTY', 'SIZED', 'SKILL', 'SLEEP',
+                   'SLIDE', 'SMALL', 'SMART', 'SMILE', 'SMITH', 'SMOKE', 'SOLID', 'SOLVE', 'SORRY', 'SOUND',
+                   'SOUTH', 'SPACE', 'SPARE', 'SPEAK', 'SPEED', 'SPEND', 'SPENT', 'SPLIT', 'SPOKE', 'SPORT',
+                   'STAFF', 'STAGE', 'STAKE', 'STAND', 'START', 'STATE', 'STEAM', 'STEEL', 'STICK', 'STILL',
+                   'STOCK', 'STONE', 'STOOD', 'STORE', 'STORM', 'STORY', 'STRIP', 'STUCK', 'STUDY', 'STUFF',
+                   'STYLE', 'SUGAR', 'SUITE', 'SUPER', 'SWEET', 'TABLE', 'TAKEN', 'TASTE', 'TAXES', 'TEACH',
+                   'TEAMS', 'TEETH', 'TEXAS', 'THANK', 'THEFT', 'THEIR', 'THEME', 'THERE', 'THESE', 'THICK',
+                   'THING', 'THINK', 'THIRD', 'THOSE', 'THREE', 'THREW', 'THROW', 'THUMB', 'TIGHT', 'TIRED',
+                   'TITLE', 'TODAY', 'TOPIC', 'TOTAL', 'TOUCH', 'TOUGH', 'TOWER', 'TRACK', 'TRADE', 'TRAIN',
+                   'TREAT', 'TREND', 'TRIAL', 'TRIBE', 'TRICK', 'TRIED', 'TRIES', 'TRUCK', 'TRULY', 'TRUNK',
+                   'TRUST', 'TRUTH', 'TWICE', 'TWIST', 'TYLER', 'UNCLE', 'UNDER', 'UNDUE', 'UNION', 'UNITY',
+                   'UNTIL', 'UPPER', 'UPSET', 'URBAN', 'USAGE', 'USUAL', 'VALUE', 'VIDEO', 'VIRUS', 'VISIT',
+                   'VITAL', 'VOCAL', 'VOICE', 'WASTE', 'WATCH', 'WATER', 'WAVE', 'WAYS', 'WEIRD', 'WELCOME',
+                   'WELLS', 'WELSH', 'WHEEL', 'WHERE', 'WHICH', 'WHILE', 'WHITE', 'WHOLE', 'WHOSE', 'WIDER',
+                   'WOMAN', 'WOMEN', 'WORLD', 'WORRY', 'WORSE', 'WORST', 'WORTH', 'WOULD', 'WRITE', 'WRONG',
+                   'WROTE', 'YIELD', 'YOUNG', 'YOURS', 'YOUTH'
+               ];
+
+               this.hardWords = [
+                   'ABYSS', 'BLITZ', 'FJORD', 'GLITZ', 'GLYPH', 'HYMNS', 'LYMPH', 'NYMPH', 'PSYCH', 'SPHINX',
+                   'TRYST', 'WALTZ', 'WHIZZ', 'BUZZY', 'FIZZY', 'FUZZY', 'JAZZY', 'JIFFY', 'DIZZY', 'GIZMO'
+               ];
+
+               this.currentWord = '';
+               this.currentRow = 0;
+               this.currentCol = 0;
+               this.gameState = 'playing'; // playing, won, lost
+               this.guesses = [];
+               this.keyboardState = {};
+               this.startTime = null;
+               this.difficulty = 'normal';
+               this.maxAttempts = 6;
+               this.score = 0;
+               this.timer = null;
+
+               this.stats = this.loadStats();
+               this.settings = this.loadSettings();
+
+               this.initGame();
+               this.setupEventListeners();
+               this.updateStatsDisplay();
+               this.applySettings();
+           }
+
+           initGame() {
+               this.selectNewWord();
+               this.createBoard();
+               this.resetGame();
+               this.startTimer();
+           }
+
+           selectNewWord() {
+               const wordList = this.difficulty === 'hard' || this.difficulty === 'expert' 
+                   ? [...this.words, ...this.hardWords] 
+                   : this.words;
+               this.currentWord = wordList[Math.floor(Math.random() * wordList.length)];
+               console.log('Word:', this.currentWord); // For testing - remove in production
+           }
+
+           createBoard() {
+               const board = document.getElementById('game-board');
+               board.innerHTML = '';
+               
+               const rows = this.difficulty === 'expert' ? 4 : 6;
+               this.maxAttempts = rows;
+               
+               for (let i = 0; i < rows; i++) {
+                   const row = document.createElement('div');
+                   row.className = 'word-row';
+                   
+                   for (let j = 0; j < 5; j++) {
+                       const tile = document.createElement('div');
+                       tile.className = 'letter-tile';
+                       tile.setAttribute('data-row', i);
+                       tile.setAttribute('data-col', j);
+                       row.appendChild(tile);
+                   }
+                   
+                   board.appendChild(row);
+               }
+           }
+
+           resetGame() {
+               this.currentRow = 0;
+               this.currentCol = 0;
+               this.gameState = 'playing';
+               this.guesses = [];
+               this.keyboardState = {};
+               this.score = 0;
+               this.startTime = Date.now();
+               
+               // Reset board
+               document.querySelectorAll('.letter-tile').forEach(tile => {
+                   tile.textContent = '';
+                   tile.className = 'letter-tile';
+               });
+               
+               // Reset keyboard
+               document.querySelectorAll('.key').forEach(key => {
+                   key.className = key.classList.contains('wide') ? 'key wide' : 'key';
+               });
+               
+               this.updateDisplay();
+           }
+
+           setupEventListeners() {
+               // Keyboard events
+               document.addEventListener('keydown', (e) => this.handleKeyPress(e.key));
+               
+               // Virtual keyboard
+               document.querySelectorAll('.key').forEach(key => {
+                   key.addEventListener('click', () => {
+                       this.handleKeyPress(key.getAttribute('data-key'));
+                   });
+               });
+               
+               // Theme toggle
+               document.getElementById('theme-toggle').addEventListener('click', () => {
+                   this.toggleTheme();
+               });
+               
+               // Modal controls
+               document.getElementById('help-btn').addEventListener('click', () => {
+                   this.openModal('help-modal');
+               });
+               
+               document.getElementById('stats-btn').addEventListener('click', () => {
+                   this.updateStatsModal();
+                   this.openModal('stats-modal');
+               });
+               
+               document.getElementById('settings-btn').addEventListener('click', () => {
+                   this.openModal('settings-modal');
+               });
+               
+               // Difficulty selector
+               document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                   btn.addEventListener('click', () => {
+                       this.setDifficulty(btn.getAttribute('data-difficulty'));
+                   });
+               });
+               
+               // Settings checkboxes
+               document.getElementById('sound-effects').addEventListener('change', (e) => {
+                   this.settings.soundEffects = e.target.checked;
+                   this.saveSettings();
+               });
+               
+               document.getElementById('auto-focus').addEventListener('change', (e) => {
+                   this.settings.autoFocus = e.target.checked;
+                   this.saveSettings();
+               });
+               
+               // Close modals when clicking outside
+               document.querySelectorAll('.modal').forEach(modal => {
+                   modal.addEventListener('click', (e) => {
+                       if (e.target === modal) {
+                           this.closeModal(modal.id);
+                       }
+                   });
+               });
+           }
+
+           handleKeyPress(key) {
+               if (this.gameState !== 'playing') return;
+               
+               key = key.toLowerCase();
+               
+               if (key === 'enter') {
+                   this.submitGuess();
+               } else if (key === 'backspace') {
+                   this.deleteLetter();
+               } else if (key.length === 1 && key.match(/[a-z]/)) {
+                   this.addLetter(key.toUpperCase());
+               }
+           }
+
+           addLetter(letter) {
+               if (this.currentCol < 5) {
+                   const tile = this.getTile(this.currentRow, this.currentCol);
+                   tile.textContent = letter;
+                   tile.classList.add('filled');
+                   
+                   // Add current indicator to next tile
+                   if (this.currentCol < 4) {
+                       const nextTile = this.getTile(this.currentRow, this.currentCol + 1);
+                       nextTile.classList.add('current');
+                   }
+                   
+                   this.currentCol++;
+                   this.updateDisplay();
+                   
+                   if (this.settings.soundEffects) {
+                       this.playSound('type');
+                   }
+               }
+           }
+
+           deleteLetter() {
+               if (this.currentCol > 0) {
+                   this.currentCol--;
+                   const tile = this.getTile(this.currentRow, this.currentCol);
+                   tile.textContent = '';
+                   tile.classList.remove('filled');
+                   
+                   // Remove current indicator from all tiles in row
+                   for (let i = 0; i < 5; i++) {
+                       this.getTile(this.currentRow, i).classList.remove('current');
+                   }
+                   
+                   // Add current indicator to current tile
+                   if (this.currentCol < 5) {
+                       tile.classList.add('current');
+                   }
+                   
+                   this.updateDisplay();
+                   
+                   if (this.settings.soundEffects) {
+                       this.playSound('delete');
+                   }
+               }
+           }
+
+           submitGuess() {
+               if (this.currentCol !== 5) {
+                   this.showMessage('Not enough letters', 'error');
+                   this.shakeRow(this.currentRow);
+                   return;
+               }
+               
+               const guess = this.getCurrentGuess();
+               
+               if (!this.isValidWord(guess)) {
+                   this.showMessage('Not in word list', 'error');
+                   this.shakeRow(this.currentRow);
+                   return;
+               }
+               
+               this.guesses.push(guess);
+               this.processGuess(guess);
+               this.updateKeyboard(guess);
+               
+               // Remove current indicators
+               for (let i = 0; i < 5; i++) {
+                   this.getTile(this.currentRow, i).classList.remove('current');
+               }
+               
+               if (guess === this.currentWord) {
+                   this.gameState = 'won';
+                   this.calculateScore();
+                   this.updateStats(true);
+                   setTimeout(() => this.showGameOver(true), 2000);
+                   
+                   if (this.settings.soundEffects) {
+                       this.playSound('win');
+                   }
+               } else if (this.currentRow >= this.maxAttempts - 1) {
+                   this.gameState = 'lost';
+                   this.updateStats(false);
+                   setTimeout(() => this.showGameOver(false), 2000);
+                   
+                   if (this.settings.soundEffects) {
+                       this.playSound('lose');
+                   }
+               } else {
+                   this.currentRow++;
+                   this.currentCol = 0;
+                   
+                   // Add current indicator to first tile of next row
+                   if (this.currentRow < this.maxAttempts) {
+                       this.getTile(this.currentRow, 0).classList.add('current');
+                   }
+                   
+                   if (this.settings.soundEffects) {
+                       this.playSound('submit');
+                   }
+               }
+               
+               this.updateDisplay();
+           }
+
+           getCurrentGuess() {
+               let guess = '';
+               for (let i = 0; i < 5; i++) {
+                   guess += this.getTile(this.currentRow, i).textContent;
+               }
+               return guess;
+           }
+
+           isValidWord(word) {
+               const allWords = [...this.words, ...this.hardWords];
+               return allWords.includes(word);
+           }
+
+           processGuess(guess) {
+               const result = this.checkGuess(guess);
+               
+               for (let i = 0; i < 5; i++) {
+                   const tile = this.getTile(this.currentRow, i);
+                   
+                   setTimeout(() => {
+                       tile.classList.add(result[i]);
+                   }, i * 100);
+               }
+           }
+
+           checkGuess(guess) {
+               const result = [];
+               const wordArray = this.currentWord.split('');
+               const guessArray = guess.split('');
+               
+               // First pass: mark exact matches
+               for (let i = 0; i < 5; i++) {
+                   if (guessArray[i] === wordArray[i]) {
+                       result[i] = 'correct';
+                       wordArray[i] = null;
+                       guessArray[i] = null;
+                   }
+               }
+               
+               // Second pass: mark present letters
+               for (let i = 0; i < 5; i++) {
+                   if (guessArray[i] !== null) {
+                       const index = wordArray.indexOf(guessArray[i]);
+                       if (index !== -1) {
+                           result[i] = 'present';
+                           wordArray[index] = null;
+                       } else {
+                           result[i] = 'absent';
+                       }
+                   }
+               }
+               
+               return result;
+           }
+
+           updateKeyboard(guess) {
+               const result = this.checkGuess(guess);
+               
+               for (let i = 0; i < 5; i++) {
+                   const letter = guess[i].toLowerCase();
+                   const currentState = this.keyboardState[letter];
+                   
+                   if (result[i] === 'correct' || currentState !== 'correct') {
+                       this.keyboardState[letter] = result[i];
+                   }
+               }
+               
+               // Update keyboard visual state
+               document.querySelectorAll('.key').forEach(key => {
+                   const letter = key.getAttribute('data-key');
+                   if (letter && letter.length === 1 && this.keyboardState[letter]) {
+                       key.classList.remove('correct', 'present', 'absent');
+                       key.classList.add(this.keyboardState[letter]);
+                   }
+               });
+           }
+
+           getTile(row, col) {
+               return document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+           }
+
+           updateDisplay() {
+               document.getElementById('current-attempt').textContent = `${this.currentRow + 1}/${this.maxAttempts}`;
+               document.getElementById('score').textContent = this.score;
+               
+               // Update timer
+               if (this.startTime && this.gameState === 'playing') {
+                   const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                   const minutes = Math.floor(elapsed / 60);
+                   const seconds = elapsed % 60;
+                   document.getElementById('timer').textContent = 
+                       `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+               }
+           }
+
+           startTimer() {
+               this.timer = setInterval(() => {
+                   if (this.gameState === 'playing') {
+                       this.updateDisplay();
+                   }
+               }, 1000);
+           }
+
+           stopTimer() {
+               if (this.timer) {
+                   clearInterval(this.timer);
+                   this.timer = null;
+               }
+           }
+
+           calculateScore() {
+               const timeBonus = Math.max(0, 300 - Math.floor((Date.now() - this.startTime) / 1000));
+               const attemptBonus = (this.maxAttempts - this.currentRow) * 50;
+               const baseScore = 100;
+               
+               this.score = baseScore + attemptBonus + timeBonus;
+           }
+
+           shakeRow(row) {
+               for (let i = 0; i < 5; i++) {
+                   const tile = this.getTile(row, i);
+                   tile.classList.add('shake');
+                   setTimeout(() => tile.classList.remove('shake'), 500);
+               }
+           }
+
+           showMessage(text, type = '') {
+               const message = document.getElementById('message');
+               message.textContent = text;
+               message.className = `message ${type}`;
+               message.classList.add('show');
+               
+               setTimeout(() => {
+                   message.classList.remove('show');
+               }, 2000);
+           }
+
+           showGameOver(won) {
+               const modal = document.getElementById('game-over-modal');
+               const title = document.getElementById('game-over-title');
+               const message = document.getElementById('game-over-message');
+               const revealedWord = document.getElementById('revealed-word');
+               
+               if (won) {
+                   title.textContent = '🎉 Congratulations!';
+                   message.textContent = 'You found the word!';
+               } else {
+                   title.textContent = '😔 Game Over';
+                   message.textContent = 'Better luck next time!';
+               }
+               
+               revealedWord.textContent = this.currentWord;
+               document.getElementById('final-attempts').textContent = `${this.currentRow + (won ? 1 : 0)}/${this.maxAttempts}`;
+               
+               const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+               const minutes = Math.floor(elapsed / 60);
+               const seconds = elapsed % 60;
+               document.getElementById('final-time').textContent = 
+                   `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+               
+               document.getElementById('final-score').textContent = this.score;
+               
+               this.openModal('game-over-modal');
+               this.stopTimer();
+           }
+
+           newGame() {
+               this.stopTimer();
+               this.selectNewWord();
+               this.createBoard();
+               this.resetGame();
+               this.startTimer();
+               
+               // Add current indicator to first tile
+               setTimeout(() => {
+                   this.getTile(0, 0).classList.add('current');
+               }, 100);
+           }
+
+           toggleTheme() {
+               const body = document.body;
+               const themeIcon = document.querySelector('#theme-toggle i');
+               
+               if (body.getAttribute('data-theme') === 'dark') {
+                   body.removeAttribute('data-theme');
+                   themeIcon.className = 'fas fa-moon';
+                   this.settings.theme = 'light';
+               } else {
+                   body.setAttribute('data-theme', 'dark');
+                   themeIcon.className = 'fas fa-sun';
+                   this.settings.theme = 'dark';
+               }
+               
+               this.saveSettings();
+           }
+
+           setDifficulty(difficulty) {
+               this.difficulty = difficulty;
+               this.settings.difficulty = difficulty;
+               this.saveSettings();
+               
+               // Update UI
+               document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                   btn.classList.remove('active');
+               });
+               document.querySelector(`[data-difficulty="${difficulty}"]`).classList.add('active');
+               
+               // Start new game with new difficulty
+               this.newGame();
+           }
+
+           openModal(modalId) {
+               document.getElementById(modalId).classList.add('show');
+           }
+
+           closeModal(modalId) {
+               document.getElementById(modalId).classList.remove('show');
+           }
+
+           updateStats(won) {
+               this.stats.gamesPlayed++;
+               if (won) {
+                   this.stats.gamesWon++;
+                   this.stats.currentStreak++;
+                   if (this.stats.currentStreak > this.stats.bestStreak) {
+                       this.stats.bestStreak = this.stats.currentStreak;
+                   }
+               } else {
+                   this.stats.currentStreak = 0;
+               }
+               
+               this.stats.winRate = Math.round((this.stats.gamesWon / this.stats.gamesPlayed) * 100);
+               this.saveStats();
+               this.updateStatsDisplay();
+           }
+
+           updateStatsDisplay() {
+               document.getElementById('streak').textContent = this.stats.currentStreak;
+               document.getElementById('best-streak').textContent = this.stats.bestStreak;
+               document.getElementById('win-rate').textContent = this.stats.winRate;
+           }
+
+           updateStatsModal() {
+               document.getElementById('total-games').textContent = this.stats.gamesPlayed;
+               document.getElementById('total-wins').textContent = this.stats.gamesWon;
+               document.getElementById('modal-win-rate').textContent = this.stats.winRate + '%';
+               document.getElementById('modal-streak').textContent = this.stats.currentStreak;
+           }
+
+           resetStats() {
+               this.stats = {
+                   gamesPlayed: 0,
+                   gamesWon: 0,
+                   currentStreak: 0,
+                   bestStreak: 0,
+                   winRate: 0
+               };
+               this.saveStats();
+               this.updateStatsDisplay();
+               this.updateStatsModal();
+               this.showMessage('Statistics reset', 'success');
+           }
+
+           shareResult() {
+               const attempts = this.gameState === 'won' ? this.currentRow + 1 : 'X';
+               const grid = this.generateResultGrid();
+               
+               const text = `Enhanced Wordle ${attempts}/${this.maxAttempts}\n\n${grid}\n\nPlay at: ${window.location.href}`;
+               
+               if (navigator.share) {
+                   navigator.share({
+                       title: 'Enhanced Wordle Result',
+                       text: text
+                   });
+               } else {
+                   navigator.clipboard.writeText(text).then(() => {
+                       this.showMessage('Result copied to clipboard!', 'success');
+                   });
+               }
+           }
+
+           generateResultGrid() {
+               let grid = '';
+               for (let i = 0; i < this.guesses.length; i++) {
+                   const result = this.checkGuess(this.guesses[i]);
+                   for (let j = 0; j < 5; j++) {
+                       if (result[j] === 'correct') {
+                           grid += '🟩';
+                       } else if (result[j] === 'present') {
+                           grid += '🟨';
+                       } else {
+                           grid += '⬛';
+                       }
+                   }
+                   grid += '\n';
+               }
+               return grid;
+           }
+
+           playSound(type) {
+               // Create audio context and play different tones for different actions
+               const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+               const oscillator = audioContext.createOscillator();
+               const gainNode = audioContext.createGain();
+               
+               oscillator.connect(gainNode);
+               gainNode.connect(audioContext.destination);
+               
+               const frequencies = {
+                   type: 400,
+                   delete: 300,
+                   submit: 500,
+                   win: 600,
+                   lose: 200
+               };
+               
+               oscillator.frequency.value = frequencies[type] || 400;
+               oscillator.type = 'sine';
+               
+               gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+               gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+               
+               oscillator.start(audioContext.currentTime);
+               oscillator.stop(audioContext.currentTime + 0.2);
+           }
+
+           loadStats() {
+               const saved = localStorage.getItem('enhanced-wordle-stats');
+               return saved ? JSON.parse(saved) : {
+                   gamesPlayed: 0,
+                   gamesWon: 0,
+                   currentStreak: 0,
+                   bestStreak: 0,
+                   winRate: 0
+               };
+           }
+
+           saveStats() {
+               localStorage.setItem('enhanced-wordle-stats', JSON.stringify(this.stats));
+           }
+
+           loadSettings() {
+               const saved = localStorage.getItem('enhanced-wordle-settings');
+               return saved ? JSON.parse(saved) : {
+                   theme: 'light',
+                   difficulty: 'normal',
+                   soundEffects: true,
+                   autoFocus: true
+               };
+           }
+
+           saveSettings() {
+               localStorage.setItem('enhanced-wordle-settings', JSON.stringify(this.settings));
+           }
+
+           applySettings() {
+               // Apply theme
+               if (this.settings.theme === 'dark') {
+                   document.body.setAttribute('data-theme', 'dark');
+                   document.querySelector('#theme-toggle i').className = 'fas fa-sun';
+               }
+               
+               // Apply difficulty
+               this.difficulty = this.settings.difficulty;
+               document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                   btn.classList.remove('active');
+               });
+               document.querySelector(`[data-difficulty="${this.settings.difficulty}"]`).classList.add('active');
+               
+               // Apply checkbox settings
+               document.getElementById('sound-effects').checked = this.settings.soundEffects;
+               document.getElementById('auto-focus').checked = this.settings.autoFocus;
+           }
+       }
+
+       // Global functions for modal controls
+       function closeModal(modalId) {
+           document.getElementById(modalId).classList.remove('show');
+       }
+
+       function resetStats() {
+           game.resetStats();
+       }
+
+       function newGame() {
+           game.newGame();
+       }
+
+       function shareResult() {
+           game.shareResult();
+       }
+
+       // Initialize the game
+       const game = new EnhancedWordle();
+
+       // Add current indicator to first tile after initialization
+       setTimeout(() => {
+           game.getTile(0, 0).classList.add('current');
+       }, 100);
+   </script>
+</body>
+</html>
